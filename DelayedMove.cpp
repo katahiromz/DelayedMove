@@ -14,7 +14,7 @@ typedef std::vector<std::wstring> files_t;
 
 void show_version(void)
 {
-    printf("DelayedMove by katahiromz 0.0\n");
+    printf("DelayedMove by katahiromz 0.1\n");
 }
 
 void usage(void)
@@ -111,7 +111,7 @@ int wmain(int argc, LPWSTR *argv)
         }
         if (arg.empty() || arg[0] == '-')
         {
-            fwprintf(stderr, L"DelayedMove: invalid argument '%s'\n", arg.c_str());
+            wprintf(L"DelayedMove: invalid argument '%s'\n", arg.c_str());
             return 1;
         }
         if (iarg + 1 < argc)
@@ -122,7 +122,7 @@ int wmain(int argc, LPWSTR *argv)
         }
         else
         {
-            fwprintf(stderr, L"DelayedMove: invalid number of arguments\n");
+            wprintf(L"DelayedMove: invalid number of arguments\n");
             return 1;
         }
     }
