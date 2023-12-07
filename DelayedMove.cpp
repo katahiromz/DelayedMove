@@ -12,9 +12,13 @@
 
 typedef std::vector<std::wstring> files_t;
 
+typedef DWORD (__stdcall *FN_SetSfcFileException)(DWORD param1, PWCHAR param2, DWORD param3);
+
+BOOL g_bDisableWFP = FALSE;
+
 void show_version(void)
 {
-    printf("DelayedMove by katahiromz 0.1\n");
+    printf("DelayedMove by katahiromz 0.2\n");
 }
 
 void usage(void)
@@ -25,8 +29,9 @@ void usage(void)
         "Usage: DelayedMove [options] \"src_1\" \"dest_1\" \"src_2\" \"dest_2\" ...\n"
         "\n"
         "Options:\n"
-        "  --help       Display this message.\n"
-        "  --version    Display version info.\n");
+        "  --disable-wfp  Disable WFP for the specified files.\n"
+        "  --help         Display this message.\n"
+        "  --version      Display version info.\n");
 }
 
 int just_do_it(const files_t& src, const files_t& dest)
@@ -48,6 +53,15 @@ int just_do_it(const files_t& src, const files_t& dest)
         }
     }
 
+    // Disable Windows File Protection (WFP)?
+    HINSTANCE hSFC = LoadLibraryW(L"sfc_os.dll");
+    FN_SetSfcFileException fnSetSfcFileException = NULL;
+    if (g_bDisableWFP)
+    {
+        fnSetSfcFileException = (FN_SetSfcFileException)GetProcAddress(hSFC, (LPCSTR)(INT_PTR)5);
+    }
+
+    int ret = 0;
     for (size_t iFile = 0; iFile < dest.size(); ++iFile)
     {
         auto& s = src[iFile];
@@ -65,6 +79,10 @@ int just_do_it(const files_t& src, const files_t& dest)
             if (PathIsDirectoryW(szDest) && !PathIsDirectoryW(szSrc))
                 PathAppendW(szDest, PathFindFileNameW(szSrc));
 
+            // Disable Windows File Protection (WFP)?
+            if (fnSetSfcFileException)
+                fnSetSfcFileException(0, szDest, -1);
+
             pszDest = szDest;
         }
 
@@ -72,7 +90,8 @@ int just_do_it(const files_t& src, const files_t& dest)
         if (!MoveFileExW(szSrc, pszDest, MOVEFILE_DELAY_UNTIL_REBOOT | MOVEFILE_REPLACE_EXISTING))
         {
             wprintf(L"DelayedMove: FAILED: '%ls' --> '%ls'.\n", szSrc, pszDest);
-            return 1;
+            ret = 1;
+            break;
         }
         else
         {
@@ -81,7 +100,10 @@ int just_do_it(const files_t& src, const files_t& dest)
         }
     }
 
-    return 0;
+    if (hSFC)
+        ::FreeLibrary(hSFC);
+
+    return ret;
 }
 
 int wmain(int argc, LPWSTR *argv)
@@ -108,6 +130,11 @@ int wmain(int argc, LPWSTR *argv)
         {
             show_version();
             return 0;
+        }
+        if (arg == L"--disable-wfp")
+        {
+            g_bDisableWFP = TRUE;
+            continue;
         }
         if (arg.empty() || arg[0] == '-')
         {
